@@ -97,6 +97,7 @@ class QuantClient:
 
     async def get_technical_indicators(self, stock_code):
         import FinanceDataReader as fdr
+        import pandas as pd
         import pandas_ta as ta
         from datetime import datetime, timedelta
         
