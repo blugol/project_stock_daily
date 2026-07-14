@@ -1,0 +1,111 @@
+import asyncio
+import websockets
+import win32gui
+import re
+import json
+
+# HTS 화면의 핸들과 이전 텍스트를 저장하는 딕셔너리
+window_titles = {}
+
+# 절대로 종목명이 될 수 없는 고정 텍스트들 (완벽 차단)
+IGNORE_EXACT = {
+    "매도", "매수", "필드", "예상", "등록", "소리", "지표분석", "비교분석", "대상", "조건", 
+    "관심", "뉴스", "종목연동", "자동삭제", "이탈삭제", "계좌연동", "최근매매종목", "메모보기", 
+    "수익률추이", "매매수익", "일별잔고", "시장가", "종목", "가격", "수량", "종류", "체결", 
+    "호가", "신용", "현금", "자동", "미수", "메뉴툴바", "버튼", "화면찾기", "빅데이터 티커", 
+    "쾌속주문툴바", "QuickOrderForm", "차트툴바", "계좌번호", "비밀번호", "손대원", "다음", 
+    "상장폐지제외", "조회", "자동(현재가)", "현금매도", "현금매수"
+}
+
+def is_valid_stock_name(name):
+    name = name.strip()
+    if len(name) < 2: return False # 너무 짧은 글자 제외
+    if len(name) > 20: return False # 너무 긴 글자(조건식 등) 제외
+    if name.isdigit(): return False # 숫자만 있는 것 제외 (120, 60 등)
+    if re.match(r'^[\d,\.]+$', name): return False # 금액, 가격 등 제외
+    if "[" in name or "]" in name or "<" in name or ">" in name: return False # 설정창 제외
+    if "└─" in name: return False
+    if "(F" in name: return False # 단축키 버튼 제외
+    if ":" in name: return False # 시간이나 설정값 제외
+    if " " in name and not any(c.isalpha() or c >= '가' and c <= '힣' for c in name): return False # 특수기호/숫자 공백 제외
+    
+    # 정확히 일치하는 금지어 제외
+    if name in IGNORE_EXACT: return False
+    
+    # 일부 포함된 금지어 제외
+    for kw in ["잔고", "실시간", "조회", "주문", "체결", "미체결", "계좌", "수익", "설정", "관심"]:
+        if kw in name: return False
+        
+    return True
+
+def get_changed_stock_name():
+    global window_titles
+    changed_stock = None
+    
+    top_windows = []
+    def enum_top(hwnd, _):
+        if win32gui.IsWindowVisible(hwnd):
+            top_windows.append(hwnd)
+    win32gui.EnumWindows(enum_top, None)
+
+    for hwnd in top_windows:
+        title = win32gui.GetWindowText(hwnd)
+        if "영웅문" in title or "키움" in title:
+            child_windows = []
+            def enum_child(child_hwnd, _):
+                if win32gui.IsWindowVisible(child_hwnd):
+                    child_windows.append(child_hwnd)
+            win32gui.EnumChildWindows(hwnd, enum_child, None)
+            
+            for child_hwnd in child_windows:
+                child_title = win32gui.GetWindowText(child_hwnd).strip()
+                if not child_title:
+                    continue
+                    
+                if child_hwnd in window_titles and window_titles[child_hwnd] != child_title:
+                    # 텍스트가 변경되었을 때, 그 텍스트가 유효한 종목명 형태인지 검사!
+                    # HTS 설정에 따라 창 제목이 아니라, 화면 내 특정 라벨(글자) 자체가 종목명으로 변경됨
+                    new_text = child_title
+                    
+                    # 혹시 기존처럼 '- 삼성전자' 형태의 창 제목이 바뀌었다면
+                    if "-" in new_text:
+                        match = re.search(r'-\s*([^-]+?)(?:\s*\([A-Za-z0-9]+\))?\s*$', new_text)
+                        if match:
+                            extracted = match.group(1).strip()
+                            if is_valid_stock_name(extracted):
+                                changed_stock = extracted
+                    
+                    # 하이픈 없이 글자 자체가 '솔루엠', '코스모화학' 등 쌩으로 바뀐 경우!
+                    if not changed_stock and is_valid_stock_name(new_text):
+                        changed_stock = new_text
+                            
+                window_titles[child_hwnd] = child_title
+
+    return changed_stock
+
+async def stock_handler(websocket):
+    current_stock = None
+    try:
+        while True:
+            new_stock = get_changed_stock_name()
+            if new_stock and new_stock != current_stock:
+                current_stock = new_stock
+                print(f"✅ 종목 인식됨: {current_stock}")
+                await websocket.send(json.dumps({"stock_name": current_stock}))
+                
+            await asyncio.sleep(0.3)
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    except Exception as e:
+        pass
+
+async def main():
+    print("=========================================")
+    print("웹소켓 서버가 정상적으로 시작되었습니다.")
+    print("HTS에서 종목을 클릭하시면 이곳과 웹페이지에 종목명이 표시됩니다.")
+    print("=========================================")
+    async with websockets.serve(stock_handler, "localhost", 8765):
+        await asyncio.Future()
+
+if __name__ == "__main__":
+    asyncio.run(main())
