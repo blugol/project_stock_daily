@@ -2,36 +2,306 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>HTS 현재 종목</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종합 분석 대시보드</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .dashboard {
+            background-color: #1e293b;
+            border-radius: 16px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+            display: none; /* Hide until data is loaded */
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stock-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .price-container {
+            text-align: right;
+        }
+
+        .current-price {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .change-rate {
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 2px 8px;
+            display: inline-block;
+        }
+
+        .red { color: #f87171; }
+        .blue { color: #60a5fa; }
+        .gray { color: #94a3b8; }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: #0f172a;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #94a3b8;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 0.5rem;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+        }
+
+        .data-label { color: #cbd5e1; }
+        .data-value { font-weight: 600; }
+
+        .dart-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .dart-list li {
+            margin-bottom: 0.8rem;
+            padding: 0.8rem;
+            background-color: #1e293b;
+            border-radius: 8px;
+            border-left: 4px solid #60a5fa;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .dart-list li:hover {
+            background-color: #334155;
+        }
+
+        .dart-date {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .dart-title {
+            color: #f1f5f9;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .waiting-msg {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-top: 100px;
+            text-align: center;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <h1 id="stockName">종목을 선택해주세요...</h1>
+
+    <div id="waitingMsg" class="waiting-msg">
+        HTS에서 종목을 클릭하시면, <br>여기에 실시간 종합 대시보드가 열립니다.
+    </div>
+
+    <div id="dashboard" class="dashboard">
+        <div class="header">
+            <h1 id="stockName" class="stock-name">삼성전자</h1>
+            <div class="price-container">
+                <div id="currentPrice" class="current-price">-</div>
+                <div id="changeRate" class="change-rate">-</div>
+            </div>
+        </div>
+
+        <div class="grid-container">
+            <!-- 펀더멘털 카드 -->
+            <div class="card">
+                <h3>📊 실시간 펀더멘털 (키움 API)</h3>
+                <div class="data-row">
+                    <span class="data-label">누적 거래량</span>
+                    <span id="volume" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">PER</span>
+                    <span id="per" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">PBR</span>
+                    <span id="pbr" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">52주 최고가</span>
+                    <span id="high52" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">52주 최저가</span>
+                    <span id="low52" class="data-value">-</span>
+                </div>
+            </div>
+
+            <!-- 공시 카드 -->
+            <div class="card">
+                <h3>🔔 최근 주요 공시 (DART API)</h3>
+                <ul id="dartList" class="dart-list">
+                    <li>공시 데이터를 불러오는 중입니다...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
     <script>
-        const stockNameElement = document.getElementById('stockName');
+        const waitingMsg = document.getElementById('waitingMsg');
+        const dashboard = document.getElementById('dashboard');
+        
         let ws;
         
+        function formatNumber(numStr) {
+            if (!numStr) return "-";
+            const num = parseInt(numStr.replace(/[^0-9-]/g, ''));
+            return isNaN(num) ? numStr : num.toLocaleString('ko-KR');
+        }
+
         function connect() {
             ws = new WebSocket('ws://localhost:8765');
             
             ws.onopen = () => {
                 console.log('웹소켓 서버 연결됨');
-                stockNameElement.innerText = "연결 완료. HTS에서 종목을 선택해보세요.";
             };
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                stockNameElement.innerText = data.stock_name;
+                
+                // UI 전환
+                waitingMsg.style.display = 'none';
+                dashboard.style.display = 'block';
+                
+                // 종목명 세팅
+                document.getElementById('stockName').innerText = data.stock_name;
+                
+                // 1. 키움증권 데이터 세팅
+                if (data.kiwoom_data && data.kiwoom_data.output) {
+                    const k = data.kiwoom_data.output;
+                    
+                    const price = parseInt(k.stck_prpr || 0);
+                    const changeRate = parseFloat(k.prdy_ctrt || 0);
+                    
+                    document.getElementById('currentPrice').innerText = price.toLocaleString('ko-KR') + "원";
+                    
+                    const rateEl = document.getElementById('changeRate');
+                    rateEl.innerText = `${changeRate > 0 ? '+' : ''}${changeRate}%`;
+                    rateEl.className = 'change-rate ' + (changeRate > 0 ? 'red' : (changeRate < 0 ? 'blue' : 'gray'));
+                    document.getElementById('currentPrice').className = 'current-price ' + (changeRate > 0 ? 'red' : (changeRate < 0 ? 'blue' : 'gray'));
+                    
+                    document.getElementById('volume').innerText = formatNumber(k.acml_vol) + "주";
+                    document.getElementById('per').innerText = (k.per || "-") + "배";
+                    document.getElementById('pbr').innerText = (k.pbr || "-") + "배";
+                    document.getElementById('high52').innerText = formatNumber(k.w52_hgpr) + "원";
+                    document.getElementById('low52').innerText = formatNumber(k.w52_lwpr) + "원";
+                } else {
+                    document.getElementById('currentPrice').innerText = "API 조회 불가";
+                    document.getElementById('changeRate').innerText = "-";
+                    document.getElementById('changeRate').className = 'change-rate gray';
+                    document.getElementById('currentPrice').className = 'current-price gray';
+                    document.getElementById('volume').innerText = "-";
+                    document.getElementById('per').innerText = "-";
+                    document.getElementById('pbr').innerText = "-";
+                    document.getElementById('high52').innerText = "-";
+                    document.getElementById('low52').innerText = "-";
+                }
+                
+                // 2. DART 공시 데이터 세팅
+                const dartList = document.getElementById('dartList');
+                dartList.innerHTML = '';
+                
+                if (data.dart_data && data.dart_data.length > 0) {
+                    data.dart_data.forEach(item => {
+                        const li = document.createElement('li');
+                        const rceptNo = item.rcept_no;
+                        const url = `https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${rceptNo}`;
+                        
+                        // 날짜 포맷 (YYYYMMDD -> YYYY.MM.DD)
+                        let dateStr = item.rcept_dt || "";
+                        if(dateStr.length === 8) {
+                            dateStr = `${dateStr.substring(0,4)}.${dateStr.substring(4,6)}.${dateStr.substring(6,8)}`;
+                        }
+                        
+                        li.innerHTML = `
+                            <a href="${url}" target="_blank" class="dart-title" style="display:block;">
+                                <span class="dart-date">${dateStr}</span>
+                                ${item.report_nm}
+                            </a>
+                        `;
+                        dartList.appendChild(li);
+                    });
+                } else {
+                    dartList.innerHTML = '<li>최근 90일간 조회된 공시가 없습니다.</li>';
+                }
             };
             
             ws.onclose = () => {
-                console.log('연결 끊김, 3초 후 재연결 시도...');
-                stockNameElement.innerText = "서버와 연결이 끊어졌습니다. 재연결 중...";
+                console.log('연결 끊김, 재연결 시도...');
                 setTimeout(connect, 3000);
-            };
-
-            ws.onerror = (error) => {
-                console.error('웹소켓 에러: ', error);
             };
         }
 

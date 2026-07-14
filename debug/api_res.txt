@@ -1,0 +1,5 @@
+Mock Status: 200
+Mock Response: {'return_msg': '입력 값 오류입니다[8030:투자구분(실전/모의)이 달라서 Appkey를 사용할수가 없습니다]', 'return_code': 2}
+
+Real Status: 200
+Real Response: {'expires_dt': '20260716003121', 'return_msg': '정상적으로 처리되었습니다', 'token_type': 'Bearer', 'return_code': 0, 'token': 'kL02kiJiC1IJGGDQeNJ-RSdNchueJqYedPiu7ui9jHvxIq4r095mUdQxU4x7R58UkuwJ8Wa8pBL7eAOhQHpU1g'}
