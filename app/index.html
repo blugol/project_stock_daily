@@ -72,7 +72,7 @@
 
         .grid-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 1.5rem;
         }
 
@@ -200,6 +200,31 @@
                 </div>
             </div>
 
+            <!-- 퀀트 지표 카드 -->
+            <div class="card">
+                <h3>📈 퀀트 지표 (세력주 포착)</h3>
+                <div class="data-row">
+                    <span class="data-label">112일 이평선</span>
+                    <span id="sma112" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">224일 이평선 (1년)</span>
+                    <span id="sma224" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">448일 이평선 (2년)</span>
+                    <span id="sma448" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">볼린저 하단 (20,2)</span>
+                    <span id="bb_lower" class="data-value">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">구름대 저항(A/B)</span>
+                    <span id="ichimoku" class="data-value">-</span>
+                </div>
+            </div>
+
             <!-- 공시 카드 -->
             <div class="card">
                 <h3>🔔 최근 주요 공시 (DART API)</h3>
@@ -296,6 +321,25 @@
                     });
                 } else {
                     dartList.innerHTML = '<li>최근 90일간 조회된 공시가 없습니다.</li>';
+                }
+                
+                // 3. 퀀트 데이터 세팅
+                if (data.quant_data) {
+                    const q = data.quant_data;
+                    document.getElementById('sma112').innerText = formatNumber(String(q.sma_112)) + "원";
+                    document.getElementById('sma224').innerText = formatNumber(String(q.sma_224)) + "원";
+                    document.getElementById('sma448').innerText = formatNumber(String(q.sma_448)) + "원";
+                    document.getElementById('bb_lower').innerText = formatNumber(String(q.bb_lower)) + "원";
+                    
+                    const spanA = formatNumber(String(q.ichimoku_span_a));
+                    const spanB = formatNumber(String(q.ichimoku_span_b));
+                    document.getElementById('ichimoku').innerText = `${spanA} / ${spanB}`;
+                } else {
+                    document.getElementById('sma112').innerText = "-";
+                    document.getElementById('sma224').innerText = "-";
+                    document.getElementById('sma448').innerText = "-";
+                    document.getElementById('bb_lower').innerText = "-";
+                    document.getElementById('ichimoku').innerText = "-";
                 }
             };
             

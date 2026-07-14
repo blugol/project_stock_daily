@@ -4,7 +4,7 @@ import win32gui
 import re
 import json
 import os
-from api_client import KiwoomClient, DartClient
+from api_client import KiwoomClient, DartClient, QuantClient
 
 # Load mappings
 try:
@@ -21,6 +21,7 @@ except Exception:
 
 kiwoom = KiwoomClient()
 dart = DartClient()
+quant = QuantClient()
 
 # HTS 화면의 핸들과 이전 텍스트를 저장하는 딕셔너리
 window_titles = {}
@@ -114,20 +115,23 @@ async def stock_handler(websocket):
                 payload = {
                     "stock_name": current_stock,
                     "kiwoom_data": None,
-                    "dart_data": None
+                    "dart_data": None,
+                    "quant_data": None
                 }
                 
                 # 병렬 API 호출 준비
                 tasks = []
                 
-                # 1. Kiwoom API 호출 (종목코드가 있는 경우)
+                # 1 & 2. Kiwoom API 및 Quant 엔진 (종목코드가 있는 경우)
                 stock_code = STOCK_CODES.get(current_stock)
                 if stock_code:
                     tasks.append(kiwoom.get_price_info(stock_code))
+                    tasks.append(quant.get_technical_indicators(stock_code))
                 else:
                     tasks.append(asyncio.sleep(0)) # 더미 태스크
+                    tasks.append(asyncio.sleep(0))
                     
-                # 2. DART API 호출 (DART 코드가 있는 경우)
+                # 3. DART API 호출 (DART 코드가 있는 경우)
                 dart_code = DART_CODES.get(current_stock)
                 if dart_code:
                     tasks.append(dart.get_recent_disclosures(dart_code))
@@ -136,13 +140,14 @@ async def stock_handler(websocket):
                     
                 # API 동시 호출 및 결과 대기
                 if stock_code or dart_code:
-                    print(f"⏳ API 데이터 조회 중... (KRX:{stock_code}, DART:{dart_code})")
+                    print(f"⏳ API 및 퀀트 지표 연산 중... (KRX:{stock_code}, DART:{dart_code})")
                     results = await asyncio.gather(*tasks)
                     
                     if stock_code:
                         payload["kiwoom_data"] = results[0]
+                        payload["quant_data"] = results[1]
                     if dart_code:
-                        payload["dart_data"] = results[1]
+                        payload["dart_data"] = results[2]
                 
                 # 통합 데이터 전송
                 await websocket.send(json.dumps(payload))
