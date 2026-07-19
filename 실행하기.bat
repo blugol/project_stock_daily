@@ -12,3 +12,4 @@ timeout /t 1 /nobreak > nul
 echo Starting Python server...
 cd app
 python server.py
+pause

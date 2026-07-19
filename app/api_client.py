@@ -32,7 +32,16 @@ class KiwoomClient:
             self.app = QApplication.instance()
             
         self.ocx = QAxWidget("KHOPENAPI.KHOpenAPICtrl.1")
-        self.ocx.OnReceiveTrData.connect(self._on_receive_tr_data)
+        
+        # 64-bit Python 환경에서는 QAxWidget이 이벤트를 매핑하지 못하므로 AttributeError 발생
+        try:
+            self.ocx.OnReceiveTrData.connect(self._on_receive_tr_data)
+        except AttributeError:
+            print("\n🚨 [치명적 오류] 키움증권 OpenAPI+는 32비트 환경에서만 구동됩니다.")
+            print("현재 사용 중인 Python은 64비트이므로 COM 객체 로드에 실패했습니다.")
+            print("이 기능을 사용하려면 32비트 Python을 설치하거나, REST API로 우회해야 합니다.\n")
+            self.ocx = None
+            return
         
         if self.ocx.dynamicCall("GetConnectState()") == 0:
             print("[Kiwoom] 자동 로그인 시도 중...")
