@@ -6,62 +6,66 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import sys
+try:
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QAxContainer import QAxWidget
+    from PyQt5.QtCore import QEventLoop
+    HAS_PYQT = True
+except ImportError:
+    HAS_PYQT = False
+
 class KiwoomClient:
     def __init__(self):
-        self.app_key = os.getenv("KIWOOM_APP_KEY")
-        self.secret_key = os.getenv("KIWOOM_SECRET_KEY")
-        self.base_url = "https://api.kiwoom.com"
-        self.access_token = None
+        self.app = None
+        self.ocx = None
+        self.loop = None
+        self.tr_data = {}
+        
+        if not HAS_PYQT:
+            print("PyQt5 패키지가 설치되지 않아 Kiwoom OpenAPI 연동이 불가능합니다.")
+            return
+            
+        if not QApplication.instance():
+            self.app = QApplication(sys.argv)
+        else:
+            self.app = QApplication.instance()
+            
+        self.ocx = QAxWidget("KHOPENAPI.KHOpenAPICtrl.1")
+        self.ocx.OnReceiveTrData.connect(self._on_receive_tr_data)
+        
+        if self.ocx.dynamicCall("GetConnectState()") == 0:
+            print("[Kiwoom] 자동 로그인 시도 중...")
+            self.ocx.dynamicCall("CommConnect()")
 
-    def auth(self):
-        url = f"{self.base_url}/oauth2/token"
-        payload = {
-            "grant_type": "client_credentials",
-            "appkey": self.app_key,
-            "secretkey": self.secret_key
-        }
-        try:
-            res = requests.post(url, json=payload, timeout=5)
-            data = res.json()
-            # KIS/Kiwoom returns "access_token" or "token"
-            if "access_token" in data:
-                self.access_token = data["access_token"]
-                return True
-            elif "token" in data:
-                self.access_token = data["token"]
-                return True
-        except Exception as e:
-            print("Kiwoom Auth Error:", e)
-        return False
+    def _on_receive_tr_data(self, scr_no, rq_name, tr_code, record_name, prev_next, data_len, err_code, msg1, msg2):
+        if rq_name == "주식기본정보요청":
+            ratio = self.ocx.dynamicCall("GetCommData(QString, QString, int, QString)", tr_code, rq_name, 0, "유통비율")
+            if ratio:
+                self.tr_data["float_ratio"] = ratio.strip()
+            
+            if self.loop:
+                self.loop.exit()
 
     async def get_price_info(self, stock_code):
-        if not self.access_token:
-            if not self.auth():
-                return None
-                
-        # 키움증권 REST API 주식기본정보요청(opt10001) TR 적용
-        url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/search-info"
-        headers = {
-            "Content-Type": "application/json; charset=utf-8",
-            "authorization": f"Bearer {self.access_token}",
-            "appkey": self.app_key,
-            "appsecret": self.secret_key,
-            "tr_id": "opt10001" # KIS FHKST01010100 에서 키움 opt10001 로 수정
-        }
-        params = {
-            "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": stock_code,
-            "종목코드": stock_code
-        }
-        try:
-            # We use run_in_executor to not block the asyncio loop
-            loop = asyncio.get_event_loop()
-            res = await loop.run_in_executor(None, lambda: requests.get(url, headers=headers, params=params, timeout=5))
-            data = res.json()
-            return data
-        except Exception as e:
-            print("Kiwoom Price Error:", e)
+        if not self.ocx:
             return None
+            
+        self.tr_data.clear()
+        self.loop = QEventLoop()
+        
+        # 1. 파라미터 세팅
+        self.ocx.dynamicCall("SetInputValue(QString, QString)", "종목코드", stock_code)
+        print(f"[Kiwoom DEBUG] SetInputValue('종목코드', '{stock_code}') 입력 완료")
+        
+        # 2. TR 호출
+        res = self.ocx.dynamicCall("CommRqData(QString, QString, int, QString)", "주식기본정보요청", "opt10001", 0, "1000")
+        print(f"[Kiwoom DEBUG] CommRqData(opt10001) 호출 완료, 리턴코드: {res}")
+        
+        # 3. 비동기 이벤트 수신 대기
+        self.loop.exec_()
+        
+        return {"output": {"유통비율": self.tr_data.get("float_ratio", "")}}
 
 class DartClient:
     def __init__(self):
