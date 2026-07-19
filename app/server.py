@@ -141,18 +141,41 @@ def format_shareholders(raw_data):
             lines.append(f"  - 소액주주 전체 합계: {rate}")
         lines.append("")
         
+    # 총 발행주식수 파싱
+    totqy = raw_data.get("stockTotqySttus", [])
+    total_stock_count = 0
+    for item in totqy:
+        if item.get("stock_knd", "") == "보통주":
+            try:
+                val = str(item.get("isu_stock_totqy", "0")).replace(",", "")
+                total_stock_count = int(val)
+            except ValueError:
+                pass
+            break
+            
+    # 자사주 수량 파싱 및 지분율(%) 자체 연산 적용
     tesstk = raw_data.get("tesstkAcqsDspsSttus", [])
+    treasury_stock_count = 0
     if tesstk:
-        lines.append("■ 자사주 취득 및 처분 현황 (보유 수량)")
         for item in tesstk:
             kind = item.get("stock_knd", "")
             mth3 = item.get("acqs_mth3", "")
-            qy = item.get("trmend_qy", "-")
+            qy = str(item.get("trmend_qy", "0")).replace(",", "")
             
-            # 보통주 중 수량이 있는 항목만 필터링
-            if kind == "보통주" and qy != "-" and qy != "0":
-                lines.append(f"  - {mth3}: {qy}주")
-        lines.append("")
+            # 보통주 + 총계 항목에서 기말 수량 추출
+            if kind == "보통주" and mth3 == "총계" and qy != "-":
+                try:
+                    treasury_stock_count = int(qy)
+                except ValueError:
+                    pass
+                break
+                
+    treasury_rate = 0.0
+    if total_stock_count > 0:
+        treasury_rate = (treasury_stock_count / total_stock_count) * 100
+        
+    lines.append(f"■ 자사주 및 자사주신탁: {treasury_rate:.2f}%")
+    lines.append("")
         
     ele = raw_data.get("elestock", [])
     if ele:

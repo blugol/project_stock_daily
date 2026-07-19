@@ -117,7 +117,8 @@ class DartClient:
             fetch("elestock"), # 임원 및 주요주주
             fetch("hyslrSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 최대주주
             fetch("tesstkAcqsDspsSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 자사주 취득 처분
-            fetch("mrhlSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}) # 소액주주
+            fetch("mrhlSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 소액주주
+            fetch("stockTotqySttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}) # 주식 총수 현황
         ]
         
         results = await asyncio.gather(*tasks)
@@ -127,7 +128,8 @@ class DartClient:
             "elestock": results[1],
             "hyslrSttus": results[2],
             "tesstkAcqsDspsSttus": results[3],
-            "mrhlSttus": results[4]
+            "mrhlSttus": results[4],
+            "stockTotqySttus": results[5]
         }
 
 class QuantClient:
