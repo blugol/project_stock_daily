@@ -90,6 +90,46 @@ class DartClient:
             print("DART Error:", e)
         return []
 
+    async def get_shareholder_info(self, corp_code):
+        if not self.api_key: return {}
+        
+        base_url = "https://opendart.fss.or.kr/api"
+        bsns_year = "2025"
+        reprt_code = "11011"
+        
+        async def fetch(endpoint, extra_params=None):
+            url = f"{base_url}/{endpoint}.json"
+            params = {"crtfc_key": self.api_key, "corp_code": corp_code}
+            if extra_params:
+                params.update(extra_params)
+            try:
+                loop = asyncio.get_event_loop()
+                res = await loop.run_in_executor(None, lambda: requests.get(url, params=params, timeout=5))
+                data = res.json()
+                if data.get("status") == "000":
+                    return data.get("list", [])
+            except Exception as e:
+                print(f"DART {endpoint} Error:", e)
+            return []
+
+        tasks = [
+            fetch("majorstock"), # 대량보유 (5% 이상)
+            fetch("elestock"), # 임원 및 주요주주
+            fetch("hyslrSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 최대주주
+            fetch("tesstkAcqsDspsSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 자사주 취득 처분
+            fetch("mrhlSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}) # 소액주주
+        ]
+        
+        results = await asyncio.gather(*tasks)
+        
+        return {
+            "majorstock": results[0],
+            "elestock": results[1],
+            "hyslrSttus": results[2],
+            "tesstkAcqsDspsSttus": results[3],
+            "mrhlSttus": results[4]
+        }
+
 class QuantClient:
     def __init__(self):
         # fdr is loaded on demand

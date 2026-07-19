@@ -111,8 +111,16 @@ async def stock_handler(websocket):
                 current_stock = new_stock
                 print(f"✅ 종목 인식됨: {current_stock}")
                 
-                # 단순히 종목명만 웹 브라우저로 전송 (API 연동 일시 중단)
-                await websocket.send(json.dumps({"stock_name": current_stock}))
+                payload = {"stock_name": current_stock, "shareholders": None}
+                
+                dart_code = DART_CODES.get(current_stock)
+                if dart_code:
+                    print(f"⏳ DART 지분율 데이터 수집 중... (DART:{dart_code})")
+                    payload["shareholders"] = await dart.get_shareholder_info(dart_code)
+                else:
+                    payload["shareholders"] = "DART 고유번호를 찾을 수 없습니다."
+                    
+                await websocket.send(json.dumps(payload))
                 
             await asyncio.sleep(0.3)
     except websockets.exceptions.ConnectionClosed:

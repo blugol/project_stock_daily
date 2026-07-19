@@ -6,9 +6,11 @@
 </head>
 <body>
     <h1 id="stockName">종목을 선택해주세요...</h1>
+    <pre id="rawOutput" style="white-space: pre-wrap; word-wrap: break-word;"></pre>
 
     <script>
         const stockNameElement = document.getElementById('stockName');
+        const rawOutputElement = document.getElementById('rawOutput');
         let ws;
         
         function connect() {
@@ -21,7 +23,12 @@
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                stockNameElement.innerText = data.stock_name;
+                stockNameElement.innerText = "종목명: " + data.stock_name;
+                if (data.shareholders) {
+                    rawOutputElement.innerText = JSON.stringify(data.shareholders, null, 2);
+                } else {
+                    rawOutputElement.innerText = "대기 중...";
+                }
             };
             
             ws.onclose = () => {
