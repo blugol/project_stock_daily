@@ -39,18 +39,19 @@ class KiwoomClient:
             if not self.auth():
                 return None
                 
-        # KIS style endpoint which Kiwoom adopted
-        url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
+        # 키움증권 REST API 주식기본정보요청(opt10001) TR 적용
+        url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/search-info"
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "authorization": f"Bearer {self.access_token}",
             "appkey": self.app_key,
             "appsecret": self.secret_key,
-            "tr_id": "FHKST01010100" # KIS domestic current price TR ID
+            "tr_id": "opt10001" # KIS FHKST01010100 에서 키움 opt10001 로 수정
         }
         params = {
             "fid_cond_mrkt_div_code": "J",
-            "fid_input_iscd": stock_code
+            "fid_input_iscd": stock_code,
+            "종목코드": stock_code
         }
         try:
             # We use run_in_executor to not block the asyncio loop

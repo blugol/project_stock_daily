@@ -205,12 +205,34 @@ async def stock_handler(websocket):
                 payload = {"stock_name": current_stock, "shareholders": None}
                 
                 dart_code = DART_CODES.get(current_stock)
+                base_text = ""
                 if dart_code:
                     print(f"⏳ DART 지분율 데이터 수집 중... (DART:{dart_code})")
                     raw_data = await dart.get_shareholder_info(dart_code)
-                    payload["shareholders"] = format_shareholders(raw_data)
+                    base_text = format_shareholders(raw_data)
                 else:
-                    payload["shareholders"] = "DART 고유번호를 찾을 수 없습니다."
+                    base_text = "DART 고유번호를 찾을 수 없습니다."
+                    
+                # Kiwoom 연동 (opt10001)
+                stock_code = STOCK_CODES.get(current_stock)
+                kiwoom_text = ""
+                if stock_code:
+                    print(f"⏳ Kiwoom 실시간 유통비율 데이터 수집 중... (Code:{stock_code})")
+                    kiwoom_data = await kiwoom.get_price_info(stock_code)
+                    float_ratio = "0.00"
+                    if kiwoom_data:
+                        out = kiwoom_data.get("output", {}) or kiwoom_data.get("output1", {}) or kiwoom_data
+                        if isinstance(out, list) and len(out) > 0:
+                            out = out[0]
+                        float_ratio_val = out.get("유통비율", "")
+                        if float_ratio_val:
+                            try:
+                                float_ratio = f"{float(float_ratio_val):.2f}"
+                            except ValueError:
+                                float_ratio = str(float_ratio_val)
+                    kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n"
+                
+                payload["shareholders"] = base_text + kiwoom_text
                     
                 await websocket.send(json.dumps(payload))
                 
