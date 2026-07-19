@@ -141,6 +141,19 @@ def format_shareholders(raw_data):
             lines.append(f"  - 소액주주 전체 합계: {rate}")
         lines.append("")
         
+    tesstk = raw_data.get("tesstkAcqsDspsSttus", [])
+    if tesstk:
+        lines.append("■ 자사주 취득 및 처분 현황 (보유 수량)")
+        for item in tesstk:
+            kind = item.get("stock_knd", "")
+            mth3 = item.get("acqs_mth3", "")
+            qy = item.get("trmend_qy", "-")
+            
+            # 보통주 중 수량이 있는 항목만 필터링
+            if kind == "보통주" and qy != "-" and qy != "0":
+                lines.append(f"  - {mth3}: {qy}주")
+        lines.append("")
+        
     ele = raw_data.get("elestock", [])
     if ele:
         lines.append("■ 임원 및 주요주주")
