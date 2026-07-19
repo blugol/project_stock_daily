@@ -102,6 +102,61 @@ def get_changed_stock_name():
 
     return changed_stock
 
+def format_shareholders(raw_data):
+    if not isinstance(raw_data, dict):
+        return str(raw_data)
+        
+    lines = []
+    
+    hyslr = raw_data.get("hyslrSttus", [])
+    if hyslr:
+        lines.append("■ 최대주주 및 특수관계인 (사업보고서 기준)")
+        for item in hyslr:
+            name = item.get("nm", "")
+            relate = item.get("relate", "")
+            rate = item.get("trmend_posesn_stock_qota_rt", "0")
+            if name == "계" or "총계" in name: continue
+            lines.append(f"  - {name} ({relate}): {rate}%")
+        lines.append("")
+        
+    major = raw_data.get("majorstock", [])
+    if major:
+        lines.append("■ 5% 이상 대량보유 주요 주주")
+        seen = set()
+        # 최신 공시 순으로 정렬하여 중복 인원 제외
+        major_sorted = sorted(major, key=lambda x: x.get("rcept_dt", ""), reverse=True)
+        for item in major_sorted:
+            name = item.get("repror", "")
+            rate = item.get("stkrt", "0")
+            if name not in seen:
+                lines.append(f"  - {name}: {rate}%")
+                seen.add(name)
+        lines.append("")
+        
+    mrhl = raw_data.get("mrhlSttus", [])
+    if mrhl:
+        lines.append("■ 소액주주 현황")
+        for item in mrhl:
+            rate = item.get("hold_stock_rate", "0%")
+            lines.append(f"  - 소액주주 전체 합계: {rate}")
+        lines.append("")
+        
+    ele = raw_data.get("elestock", [])
+    if ele:
+        lines.append("■ 임원 및 주요주주")
+        seen = set()
+        ele_sorted = sorted(ele, key=lambda x: x.get("rcept_dt", ""), reverse=True)
+        for item in ele_sorted:
+            name = item.get("repror", "")
+            pos = item.get("isu_exctv_ofcps", "")
+            rate = item.get("sp_stock_lmp_rate", "0")
+            if name not in seen:
+                lines.append(f"  - {name} ({pos}): {rate}%")
+                seen.add(name)
+        lines.append("")
+        
+    return "\n".join(lines).strip() if lines else "지분율 데이터를 찾을 수 없습니다."
+
 async def stock_handler(websocket):
     current_stock = None
     try:
@@ -116,7 +171,8 @@ async def stock_handler(websocket):
                 dart_code = DART_CODES.get(current_stock)
                 if dart_code:
                     print(f"⏳ DART 지분율 데이터 수집 중... (DART:{dart_code})")
-                    payload["shareholders"] = await dart.get_shareholder_info(dart_code)
+                    raw_data = await dart.get_shareholder_info(dart_code)
+                    payload["shareholders"] = format_shareholders(raw_data)
                 else:
                     payload["shareholders"] = "DART 고유번호를 찾을 수 없습니다."
                     

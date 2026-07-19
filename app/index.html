@@ -25,7 +25,7 @@
                 const data = JSON.parse(event.data);
                 stockNameElement.innerText = "종목명: " + data.stock_name;
                 if (data.shareholders) {
-                    rawOutputElement.innerText = JSON.stringify(data.shareholders, null, 2);
+                    rawOutputElement.innerText = data.shareholders;
                 } else {
                     rawOutputElement.innerText = "대기 중...";
                 }
