@@ -94,8 +94,6 @@ class DartClient:
         if not self.api_key: return {}
         
         base_url = "https://opendart.fss.or.kr/api"
-        bsns_year = "2025"
-        reprt_code = "11011"
         
         async def fetch(endpoint, extra_params=None):
             url = f"{base_url}/{endpoint}.json"
@@ -109,16 +107,42 @@ class DartClient:
                 if data.get("status") == "000":
                     return data.get("list", [])
             except Exception as e:
-                print(f"DART {endpoint} Error:", e)
+                pass
             return []
+
+        # 가장 최신 보고서를 동적으로 찾기 (현재 연도 기준 역순 추적)
+        from datetime import datetime
+        current_year = datetime.now().year
+        candidates = [
+            (str(current_year), "11014"), # 3분기
+            (str(current_year), "11012"), # 반기
+            (str(current_year), "11013"), # 1분기
+            (str(current_year - 1), "11011"), # 전년 사업보고서
+            (str(current_year - 1), "11014"),
+            (str(current_year - 1), "11012"),
+            (str(current_year - 1), "11013"),
+            (str(current_year - 2), "11011")
+        ]
+        
+        best_year = "2025"
+        best_code = "11011"
+        stock_tot_data = []
+        
+        for year, code in candidates:
+            res = await fetch("stockTotqySttus", {"bsns_year": year, "reprt_code": code})
+            if res:
+                best_year = year
+                best_code = code
+                stock_tot_data = res
+                print(f"[DART] 최신 보고서 동적 매칭 성공: {best_year}년 {best_code} (DART:{corp_code})")
+                break
 
         tasks = [
             fetch("majorstock"), # 대량보유 (5% 이상)
             fetch("elestock"), # 임원 및 주요주주
-            fetch("hyslrSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 최대주주
-            fetch("tesstkAcqsDspsSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 자사주 취득 처분
-            fetch("mrhlSttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}), # 소액주주
-            fetch("stockTotqySttus", {"bsns_year": bsns_year, "reprt_code": reprt_code}) # 주식 총수 현황
+            fetch("hyslrSttus", {"bsns_year": best_year, "reprt_code": best_code}), # 최대주주
+            fetch("tesstkAcqsDspsSttus", {"bsns_year": best_year, "reprt_code": best_code}), # 자사주 취득 처분
+            fetch("mrhlSttus", {"bsns_year": best_year, "reprt_code": best_code}) # 소액주주
         ]
         
         results = await asyncio.gather(*tasks)
@@ -129,7 +153,7 @@ class DartClient:
             "hyslrSttus": results[2],
             "tesstkAcqsDspsSttus": results[3],
             "mrhlSttus": results[4],
-            "stockTotqySttus": results[5]
+            "stockTotqySttus": stock_tot_data
         }
 
 class QuantClient:
