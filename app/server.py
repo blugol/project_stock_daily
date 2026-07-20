@@ -153,29 +153,6 @@ def format_shareholders(raw_data):
                 pass
             break
             
-    # 자사주 수량 파싱 및 지분율(%) 자체 연산 적용
-    tesstk = raw_data.get("tesstkAcqsDspsSttus", [])
-    treasury_stock_count = 0
-    if tesstk:
-        for item in tesstk:
-            kind = item.get("stock_knd", "")
-            mth3 = item.get("acqs_mth3", "")
-            qy = str(item.get("trmend_qy", "0")).replace(",", "")
-            
-            # 보통주 + 총계 항목에서 기말 수량 추출
-            if kind == "보통주" and mth3 == "총계" and qy != "-":
-                try:
-                    treasury_stock_count = int(qy)
-                except ValueError:
-                    pass
-                break
-                
-    treasury_rate = 0.0
-    if total_stock_count > 0:
-        treasury_rate = (treasury_stock_count / total_stock_count) * 100
-        
-    lines.append(f"■ 자사주 및 자사주신탁: {treasury_rate:.2f}%")
-    lines.append("")
         
     ele = raw_data.get("elestock", [])
     if ele:
