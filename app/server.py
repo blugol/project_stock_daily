@@ -4,7 +4,7 @@ import win32gui
 import re
 import json
 import os
-from api_client import KiwoomClient, DartClient, QuantClient
+from api_client import KiwoomClient, DartClient, QuantClient, NaverClient
 
 # Load mappings
 try:
@@ -208,8 +208,18 @@ async def stock_handler(websocket):
                             except ValueError:
                                 float_ratio = str(float_ratio_val)
                     kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n"
+                    
+                # Naver/FnGuide 섹터 및 재료(테마)
+                naver_text = ""
+                if stock_code:
+                    print(f"⏳ 섹터 및 재료(테마) 데이터 수집 중... (Code:{stock_code})")
+                    naver_data = await naver.get_sector_and_theme(stock_code)
+                    if naver_data:
+                        sec = naver_data.get('sector', '알 수 없음')
+                        thm = naver_data.get('theme_summary', '요약 정보 없음')
+                        naver_text = f"■ 섹터 및 테마(재료)\n  - 섹터(업종): {sec}\n  - 기업개요(재료): {thm}\n"
                 
-                payload["shareholders"] = base_text + kiwoom_text
+                payload["shareholders"] = base_text + kiwoom_text + naver_text
                     
                 await websocket.send(json.dumps(payload))
                 
