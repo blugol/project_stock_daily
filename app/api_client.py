@@ -248,62 +248,9 @@ class QuantClient:
             if isa and isb:
                 result["ichimoku_span_a"] = safe_val(latest.get(isa[0]))
                 result["ichimoku_span_b"] = safe_val(latest.get(isb[0]))
-
-            macd_h = [c for c in df.columns if c.startswith('MACDh_')]
-            if macd_h:
-                result["macd_histogram"] = safe_val(latest.get(macd_h[0]))
                 
             return result
             
         except Exception as e:
-            print(f"[Quant] 기술적 지표 계산 오류: {e}")
+            print("Quant Engine Error:", e)
             return None
-
-class NaverClient:
-    def __init__(self):
-        pass
-
-    async def get_sector_and_theme(self, stock_code):
-        import requests
-        from bs4 import BeautifulSoup
-        import asyncio
-        
-        def _scrape():
-            try:
-                # 1. 네이버 금융 메인에서 업종 크롤링
-                url = f"https://finance.naver.com/item/main.naver?code={stock_code}"
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                res = requests.get(url, headers=headers, timeout=5)
-                res.encoding = 'euc-kr'
-                soup = BeautifulSoup(res.text, 'html.parser')
-                
-                sector_text = "알 수 없음"
-                trade_compare = soup.select_one('.trade_compare h4 em a')
-                if trade_compare:
-                    sector_text = trade_compare.text.strip()
-                
-                # 2. FnGuide에서 기업개요(재료/사업내용) 크롤링
-                fnguide_url = f"https://comp.fnguide.com/SVO2/ASP/SVD_Main.asp?pGB=1&gicode=A{stock_code}"
-                fnguide_res = requests.get(fnguide_url, headers=headers, timeout=5)
-                fnguide_soup = BeautifulSoup(fnguide_res.text, 'html.parser')
-                
-                summary_text = "요약 정보 없음"
-                biz_summary = fnguide_soup.select_one('#bizSummaryContent')
-                if biz_summary:
-                    summary_text = biz_summary.text.strip()
-                    # 첫 문장만 추출 (너무 길지 않게)
-                    if '.' in summary_text:
-                        summary_text = summary_text.split('.')[0] + "."
-                    elif '다.' in summary_text:
-                        summary_text = summary_text.split('다.')[0] + "다."
-
-                return {
-                    "sector": sector_text,
-                    "theme_summary": summary_text
-                }
-            except Exception as e:
-                print(f"[Naver/FnGuide] 크롤링 오류: {e}")
-                return {"sector": "오류", "theme_summary": "오류"}
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, _scrape)
