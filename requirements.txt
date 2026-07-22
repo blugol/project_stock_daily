@@ -1,3 +1,7 @@
 websockets
 pywin32
 PyQt5
+requests
+beautifulsoup4
+finance-datareader
+tqdm

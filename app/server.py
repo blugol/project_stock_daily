@@ -19,6 +19,13 @@ try:
 except Exception:
     DART_CODES = {}
 
+try:
+    theme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "theme_mapping.json")
+    with open(theme_path, "r", encoding="utf-8") as f:
+        THEME_MAPPING = json.load(f)
+except Exception:
+    THEME_MAPPING = {}
+
 kiwoom = KiwoomClient()
 dart = DartClient()
 quant = QuantClient()
@@ -208,8 +215,19 @@ async def stock_handler(websocket):
                             except ValueError:
                                 float_ratio = str(float_ratio_val)
                     
-                    themes_str = kiwoom.get_stock_themes(stock_code)
-                    kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n■ 소속 섹터 및 테마: {themes_str}\n"
+                    theme_info = THEME_MAPPING.get(stock_code, {})
+                    sector_name = theme_info.get("sector", "")
+                    theme_list = theme_info.get("themes", [])
+                    
+                    themes_str = ", ".join(theme_list) if theme_list else "해당 테마 없음"
+                    sector_str = sector_name if sector_name else "해당 섹터 없음"
+                    
+                    if sector_str == "해당 섹터 없음" and themes_str == "해당 테마 없음":
+                        mapping_text = "해당 테마 없음"
+                    else:
+                        mapping_text = f"{sector_str} / {themes_str}"
+                        
+                    kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n■ 소속 섹터 및 테마: {mapping_text}\n"
                 
                 payload["shareholders"] = base_text + kiwoom_text
                     
