@@ -42,6 +42,8 @@ class KiwoomClient:
             print("이 기능을 사용하려면 32비트 Python을 설치하거나, REST API로 우회해야 합니다.\n")
             self.ocx = None
             return
+            
+        self.stock_themes = {}
         
         if self.ocx.dynamicCall("GetConnectState()") == 0:
             print("[Kiwoom] 자동 로그인 시도 중...")
@@ -75,6 +77,50 @@ class KiwoomClient:
         self.loop.exec_()
         
         return {"output": {"유통비율": self.tr_data.get("float_ratio", "")}}
+        
+    def load_theme_mapping(self):
+        """키움 API를 통해 테마 그룹 및 소속 종목 데이터를 캐싱 (동기/블로킹)"""
+        if not self.ocx or self.ocx.isNull():
+            return
+            
+        try:
+            print("[Kiwoom] 백그라운드 테마 매핑 연산 시작...")
+            # 1. 테마 그룹 리스트 조회 (포맷: 테마코드|테마명;테마코드|테마명;...)
+            theme_list_str = self.ocx.dynamicCall("GetThemeGroupList(int)", 1)
+            if not theme_list_str:
+                return
+                
+            theme_items = str(theme_list_str).split(";")
+            for item in theme_items:
+                if not item or "|" not in item:
+                    continue
+                theme_code, theme_name = item.split("|", 1)
+                
+                # 2. 특정 테마코드에 속한 종목코드 리스트 조회 (포맷: A005930;A000660;...)
+                # 키움은 종목코드 앞에 A를 붙여서 리턴할 수 있으므로 제거 로직 추가
+                stock_codes_str = self.ocx.dynamicCall("GetThemeGroupCode(QString)", theme_code)
+                if stock_codes_str:
+                    codes = str(stock_codes_str).split(";")
+                    for code in codes:
+                        code = code.strip().replace("A", "") # 'A005930' -> '005930'
+                        if not code:
+                            continue
+                        if code not in self.stock_themes:
+                            self.stock_themes[code] = []
+                        if theme_name not in self.stock_themes[code]:
+                            self.stock_themes[code].append(theme_name)
+                            
+            print(f"[Kiwoom] 테마 매핑 완료 (총 {len(self.stock_themes)}개 종목 캐싱됨)")
+        except Exception as e:
+            print(f"[Kiwoom] 테마 매핑 중 오류 발생: {e}")
+
+    def get_stock_themes(self, stock_code):
+        """특정 종목의 소속 테마명을 콤마로 연결하여 반환"""
+        if not self.stock_themes:
+            self.load_theme_mapping()
+            
+        themes = self.stock_themes.get(stock_code, [])
+        return ", ".join(themes) if themes else "해당 테마 없음"
 
 class DartClient:
     def __init__(self):

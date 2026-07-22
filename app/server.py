@@ -207,7 +207,9 @@ async def stock_handler(websocket):
                                 float_ratio = f"{float(float_ratio_val):.2f}"
                             except ValueError:
                                 float_ratio = str(float_ratio_val)
-                    kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n"
+                    
+                    themes_str = kiwoom.get_stock_themes(stock_code)
+                    kiwoom_text = f"\n■ 실시간 유통비율 (키움 연동): {float_ratio}%\n■ 소속 섹터 및 테마: {themes_str}\n"
                 
                 payload["shareholders"] = base_text + kiwoom_text
                     
