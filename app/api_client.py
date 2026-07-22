@@ -21,6 +21,7 @@ class KiwoomClient:
         self.ocx = None
         self.loop = None
         self.tr_data = {}
+        self.stock_themes = {}
         
         if not HAS_PYQT:
             print("PyQt5 패키지가 설치되지 않아 Kiwoom OpenAPI 연동이 불가능합니다.")
@@ -42,8 +43,6 @@ class KiwoomClient:
             print("이 기능을 사용하려면 32비트 Python을 설치하거나, REST API로 우회해야 합니다.\n")
             self.ocx = None
             return
-            
-        self.stock_themes = {}
         
         if self.ocx.dynamicCall("GetConnectState()") == 0:
             print("[Kiwoom] 자동 로그인 시도 중...")
@@ -116,10 +115,10 @@ class KiwoomClient:
 
     def get_stock_themes(self, stock_code):
         """특정 종목의 소속 테마명을 콤마로 연결하여 반환"""
-        if not self.stock_themes:
+        if not hasattr(self, 'stock_themes') or not self.stock_themes:
             self.load_theme_mapping()
             
-        themes = self.stock_themes.get(stock_code, [])
+        themes = self.stock_themes.get(stock_code, []) if hasattr(self, 'stock_themes') else []
         return ", ".join(themes) if themes else "해당 테마 없음"
 
 class DartClient:
